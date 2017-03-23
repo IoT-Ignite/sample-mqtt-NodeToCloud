@@ -159,7 +159,7 @@ void setup() {
 }
 
 //Wait 20 seconds before sending data to IoT-Ignite
-int delayTime = 20000;
+int delayTime = 5000;
 int startDelay = 0;
 boolean inventory_sent = false;
 boolean node_presence_sent = false;
@@ -222,9 +222,11 @@ void loop() {
 
   // ping the server to keep the mqtt connection alive
   // NOT required if you are publishing once every KEEPALIVE seconds
+  /*
   if(! mqtt.ping()) {
     mqtt.disconnect();
   }
+  */
 }
 
 boolean sendData(String sensor, float value) {
