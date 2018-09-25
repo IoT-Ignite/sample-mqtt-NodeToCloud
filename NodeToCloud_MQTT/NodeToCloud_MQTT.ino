@@ -28,7 +28,7 @@
 
 #define DEBUG_PRINTER Serial
 
-#define DHTPIN D7     // what digital pin we're connected to
+#define DHTPIN D4     // what digital pin we're connected to
 
 // Uncomment whatever type you're using!
 #define DHTTYPE DHT11   // DHT 11
@@ -50,28 +50,29 @@ DHT dht(DHTPIN, DHTTYPE);
 
 /************************* WiFi Access Point *********************************/
 
-#define WLAN_SSID       "..."
-#define WLAN_PASS       "..."
+#define WLAN_SSID       "ARDIC_GUEST"
+#define WLAN_PASS       "w1Cm2ardC"
 
 /************************* Adafruit.io Setup *********************************/
 
 #define ARB_SERVER      "mqtt.ardich.com"
 #define ARB_SERVERPORT  8883                   // use 8883 for SSL
-#define ARB_USERNAME    "..."
-#define ARB_PW          "..."
+#define ARB_USERNAME    "arduinogw"
+#define ARB_PW          "12345678"
 
 /************************* Device, Node and Sensors **************************/
 //Device
-#define DEVICE_ID "..."
+#define DEVICE_ID "arduino-gw"
 
 // Node
-#define NODE_ID "Virtual Node"
+#define NODE_ID "Node"
 
 // Sensors
-#define SENSOR_DHT11_TEMPERATURE "DHT11 Temp"
-#define SENSOR_DHT11_HUMIDITY "DHT11 Hum"
+#define SENSOR_DHT11_TEMPERATURE "T"
+#define SENSOR_DHT11_HUMIDITY "H"
 
 //Methods
+#define PUBLISH_INVENTORY DEVICE_ID  "/publish/DeviceProfile/Status/DeviceNodeInventory"
 #define PUBLISH_PRESENCE DEVICE_ID  "/publish/DeviceProfile/Status/DeviceNodePresence"
 #define PUBLISH_TEMPERATURE_DATA DEVICE_ID  "/publish/DeviceProfile/" NODE_ID "/" SENSOR_DHT11_TEMPERATURE
 #define PUBLISH_HUMIDITY_DATA DEVICE_ID  "/publish/DeviceProfile/" NODE_ID "/" SENSOR_DHT11_HUMIDITY
@@ -90,6 +91,7 @@ Adafruit_MQTT_Client mqtt(&client, ARB_SERVER, ARB_SERVERPORT, DEVICE_ID, ARB_US
 
 /****************************** Feeds ***************************************/
 
+Adafruit_MQTT_Publish inventory = Adafruit_MQTT_Publish(&mqtt, PUBLISH_INVENTORY, MQTT_QOS_1);
 Adafruit_MQTT_Publish presence = Adafruit_MQTT_Publish(&mqtt, PUBLISH_PRESENCE, MQTT_QOS_1);
 Adafruit_MQTT_Publish tempData = Adafruit_MQTT_Publish(&mqtt, PUBLISH_TEMPERATURE_DATA, MQTT_QOS_1);
 Adafruit_MQTT_Publish humData = Adafruit_MQTT_Publish(&mqtt, PUBLISH_HUMIDITY_DATA, MQTT_QOS_1);
@@ -159,7 +161,7 @@ void setup() {
 }
 
 //Wait 20 seconds before sending data to IoT-Ignite
-int delayTime = 5000;
+int delayTime = 30000;
 int startDelay = 0;
 boolean inventory_sent = false;
 boolean node_presence_sent = false;
@@ -183,11 +185,7 @@ void loop() {
     Serial.print("...");
     if(!isnan(temp_f)) {
       //Publish to IoT-Ignite
-      if (! sendData(SENSOR_DHT11_TEMPERATURE, temp_f)) {
-        Serial.println(F("Failed"));
-      } else {
-        Serial.println(F("Sent!"));
-      }
+      sendData(SENSOR_DHT11_TEMPERATURE, temp_f);
     }
 
     //Get humidty
@@ -197,11 +195,7 @@ void loop() {
     Serial.print("...");
     if(!isnan(temp_f)) {
       //Publish to IoT-Ignite
-      if (! sendData(SENSOR_DHT11_HUMIDITY, temp_f)) {
-        Serial.println(F("Failed"));
-      } else {
-        Serial.println(F("Sent!"));
-      }
+      sendData(SENSOR_DHT11_HUMIDITY, temp_f);
     }
 
     if(!node_presence_sent) {
@@ -229,10 +223,49 @@ void loop() {
   */
 }
 
+boolean sendInventory(){
+  String packet = "";
+
+  DynamicJsonBuffer jsonBuffer;
+  JsonObject& root = jsonBuffer.createObject();
+  JsonArray& data = root.createNestedArray("data");
+
+  JsonObject& nodeData = jsonBuffer.createObject();
+  nodeData["nodeId"] = NODE_ID;
+
+  JsonArray& things = nodeData.createNestedArray("things");
+  
+  JsonObject& tempSensorData = jsonBuffer.createObject();
+  tempSensorData["id"] = SENSOR_DHT11_TEMPERATURE;
+  tempSensorData["dataType"] = "FLOAT";
+  tempSensorData["vendor"] = "a";
+  tempSensorData["actuator"] = false;
+  tempSensorData["type"] = "T";
+  things.add(tempSensorData);
+
+  JsonObject& sensorData = jsonBuffer.createObject();
+  sensorData["id"] = SENSOR_DHT11_HUMIDITY;
+  sensorData["dataType"] = "FLOAT";
+  sensorData["vendor"] = "a";
+  sensorData["actuator"] = false;
+  sensorData["type"] = "H";
+  things.add(sensorData);
+
+  data.add(nodeData);
+
+  root.printTo(packet);
+  Serial.println(packet);
+
+  inventory.publish(packet.c_str());
+
+  return true;
+  
+}
+
+//{"data":{"sensorData":[{"date":1533284119476,"values":["20000"]}]}}
 boolean sendData(String sensor, float value) {
   String packet = "";
 
-  //StaticJsonBuffer<400> jsonBuffer;
   DynamicJsonBuffer jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
 
@@ -313,13 +346,9 @@ boolean sendSensorPresence(String sensor, int connected, String message) {
   Serial.println(packet.c_str());
 
   Serial.println(sensor);
-  if (! presence.publish(packet.c_str())) {
-    Serial.println(F("Sensor Presence Sent Failed!"));
-    return false;
-  } else {
-    Serial.println(F("Sensor Presence Sent."));
-    return true;
-  }
+  presence.publish(packet.c_str());
+  Serial.println(F("Sensor Presence Sent."));
+  return true;
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.
@@ -346,6 +375,7 @@ void MQTT_connect() {
          while (1);
        }
   }
+  sendInventory();
   Serial.println(F("MQTT Connected!"));
 }
 
