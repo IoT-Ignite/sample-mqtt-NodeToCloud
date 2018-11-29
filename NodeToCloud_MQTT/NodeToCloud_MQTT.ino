@@ -50,19 +50,19 @@ DHT dht(DHTPIN, DHTTYPE);
 
 /************************* WiFi Access Point *********************************/
 
-#define WLAN_SSID       "ARDIC_GUEST"
-#define WLAN_PASS       "w1Cm2ardC"
+#define WLAN_SSID       //WLAN SSID
+#define WLAN_PASS       //SSID Password
 
 /************************* Adafruit.io Setup *********************************/
 
 #define ARB_SERVER      "mqtt.ardich.com"
 #define ARB_SERVERPORT  8883                   // use 8883 for SSL
-#define ARB_USERNAME    "arduinogw"
-#define ARB_PW          "12345678"
+#define ARB_USERNAME    //MQTT USERNAME
+#define ARB_PW          //MQTT PASSWORD
 
 /************************* Device, Node and Sensors **************************/
 //Device
-#define DEVICE_ID "arduino-gw"
+#define DEVICE_ID //MQTT DEVICE ID
 
 // Node
 #define NODE_ID "Node"
