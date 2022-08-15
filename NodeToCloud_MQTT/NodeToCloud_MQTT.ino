@@ -55,7 +55,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 /************************* Adafruit.io Setup *********************************/
 
-#define ARB_SERVER      "mqtt.ardich.com"
+#define ARB_SERVER      "mqtt-tr.iot-ignite.com"
 #define ARB_SERVERPORT  8883                   // use 8883 for SSL
 #define ARB_USERNAME    //MQTT USERNAME
 #define ARB_PW          //MQTT PASSWORD
