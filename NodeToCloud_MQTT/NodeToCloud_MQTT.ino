@@ -1,23 +1,3 @@
-/***************************************************
-  Adafruit MQTT Library Arbitrary Data Example
-
-  Must use ESP8266 Arduino from:
-    https://github.com/esp8266/Arduino
-
-  Works great with Adafruit's Huzzah ESP board & Feather
-  ----> https://www.adafruit.com/product/2471
-  ----> https://www.adafruit.com/products/2821
-
-  Adafruit invests time and resources providing this open source code,
-  please support Adafruit and open-source hardware by purchasing
-  products from Adafruit!
-
-  Written by Stuart Feichtinger
-  Modifed from the mqtt_esp8266 example written by Tony DiCola for Adafruit Industries.
-  MIT license, all text above must be included in any redistribution
- ****************************************************/
-
-#include <Time.h>
 #include <TimeLib.h>
 #include <ESP8266WiFi.h>
 #include "Adafruit_MQTT.h"
@@ -28,11 +8,11 @@
 
 #define DEBUG_PRINTER Serial
 
-#define DHTPIN D4     // what digital pin we're connected to
+#define DHTPIN D3     // what digital pin we're connected to
 
 // Uncomment whatever type you're using!
-#define DHTTYPE DHT11   // DHT 11
-//#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
+//#define DHTTYPE DHT11   // DHT 11
+#define DHTTYPE DHT22   // DHT 22  (AM2302), AM2321
 //#define DHTTYPE DHT21   // DHT 21 (AM2301)
 
 // Connect pin 1 (on the left) of the sensor to +5V
@@ -50,8 +30,8 @@ DHT dht(DHTPIN, DHTTYPE);
 
 /************************* WiFi Access Point *********************************/
 
-#define WLAN_SSID       //WLAN SSID
-#define WLAN_PASS       //SSID Password
+#define WLAN_SSID  //WLAN SSID
+#define WLAN_PASS  //SSID Password
 
 /************************* Adafruit.io Setup *********************************/
 
@@ -65,19 +45,20 @@ DHT dht(DHTPIN, DHTTYPE);
 #define DEVICE_ID //MQTT DEVICE ID
 
 // Node
-#define NODE_ID "Node"
+#define NODE_ID "SmartOfficeESP8266Node"
 
 // Sensors
-#define SENSOR_DHT11_TEMPERATURE "T"
-#define SENSOR_DHT11_HUMIDITY "H"
+#define SENSOR_DHT22_TEMPERATURE "DHT22Temperature"
+#define SENSOR_DHT22_HUMIDITY "DHT22Humidity"
 
 //Methods
 #define PUBLISH_INVENTORY DEVICE_ID  "/publish/DeviceProfile/Status/DeviceNodeInventory"
 #define PUBLISH_PRESENCE DEVICE_ID  "/publish/DeviceProfile/Status/DeviceNodePresence"
-#define PUBLISH_TEMPERATURE_DATA DEVICE_ID  "/publish/DeviceProfile/" NODE_ID "/" SENSOR_DHT11_TEMPERATURE
-#define PUBLISH_HUMIDITY_DATA DEVICE_ID  "/publish/DeviceProfile/" NODE_ID "/" SENSOR_DHT11_HUMIDITY
+#define PUBLISH_TEMPERATURE_DATA DEVICE_ID  "/publish/DeviceProfile/" NODE_ID "/" SENSOR_DHT22_TEMPERATURE
+#define PUBLISH_HUMIDITY_DATA DEVICE_ID  "/publish/DeviceProfile/" NODE_ID "/" SENSOR_DHT22_HUMIDITY
 
-float temp_f;  // Values read from sensor
+float temp_c;  // Values read from sensor
+float hum;
 
 /************ Global State (you don't need to change this!) ******************/
 
@@ -91,10 +72,10 @@ Adafruit_MQTT_Client mqtt(&client, ARB_SERVER, ARB_SERVERPORT, DEVICE_ID, ARB_US
 
 /****************************** Feeds ***************************************/
 
-Adafruit_MQTT_Publish inventory = Adafruit_MQTT_Publish(&mqtt, PUBLISH_INVENTORY, MQTT_QOS_1);
-Adafruit_MQTT_Publish presence = Adafruit_MQTT_Publish(&mqtt, PUBLISH_PRESENCE, MQTT_QOS_1);
-Adafruit_MQTT_Publish tempData = Adafruit_MQTT_Publish(&mqtt, PUBLISH_TEMPERATURE_DATA, MQTT_QOS_1);
-Adafruit_MQTT_Publish humData = Adafruit_MQTT_Publish(&mqtt, PUBLISH_HUMIDITY_DATA, MQTT_QOS_1);
+Adafruit_MQTT_Publish inventory = Adafruit_MQTT_Publish(&mqtt, PUBLISH_INVENTORY, MQTT_QOS_0);
+Adafruit_MQTT_Publish presence = Adafruit_MQTT_Publish(&mqtt, PUBLISH_PRESENCE, MQTT_QOS_0);
+Adafruit_MQTT_Publish tempData = Adafruit_MQTT_Publish(&mqtt, PUBLISH_TEMPERATURE_DATA, MQTT_QOS_0);
+Adafruit_MQTT_Publish humData = Adafruit_MQTT_Publish(&mqtt, PUBLISH_HUMIDITY_DATA, MQTT_QOS_0);
 
 
 /*************************** Sketch Code ************************************/
@@ -135,6 +116,9 @@ void setup() {
 
   Serial.println(F("WiFi connected"));
   Serial.println(F("IP address: ")); Serial.println(WiFi.localIP());
+
+
+  client.setInsecure();
 
   Udp.begin(localPort);
   Serial.print("Local port: ");
@@ -181,33 +165,33 @@ void loop() {
     //Get temperature in Celcius
     temp_f = dht.readTemperature();
     Serial.print(F("\nSending temperature: "));
-    Serial.print(temp_f);
+    Serial.print(temp_c);
     Serial.print("...");
-    if(!isnan(temp_f)) {
+    if (!isnan(temp_c)) {
       //Publish to IoT-Ignite
-      sendData(SENSOR_DHT11_TEMPERATURE, temp_f);
+      sendData(SENSOR_DHT22_TEMPERATURE, temp_c);
     }
 
     //Get humidty
-    temp_f = dht.readHumidity();
+    hum = dht.readHumidity();
     Serial.print(F("\nSending humidity: "));
-    Serial.print(temp_f);
+    Serial.print(hum);
     Serial.print("...");
-    if(!isnan(temp_f)) {
+    if (!isnan(hum)) {
       //Publish to IoT-Ignite
-      sendData(SENSOR_DHT11_HUMIDITY, temp_f);
+      sendData(SENSOR_DHT22_HUMIDITY, hum);
     }
 
-    if(!node_presence_sent) {
+    if (!node_presence_sent) {
       sendNodePresence(1, "");
       node_presence_sent = true;
     }
 
-    if(!temp_presence_sent && sendSensorPresence(SENSOR_DHT11_TEMPERATURE, 1, "")) {
-        temp_presence_sent = true;
+    if (!temp_presence_sent && sendSensorPresence(SENSOR_DHT22_TEMPERATURE, 1, "")) {
+      temp_presence_sent = true;
     }
 
-    if(!hum_presence_sent && sendSensorPresence(SENSOR_DHT11_HUMIDITY, 1, "")) {
+    if (!hum_presence_sent && sendSensorPresence(SENSOR_DHT22_HUMIDITY, 1, "")) {
       hum_presence_sent = true;
     }
 
@@ -217,138 +201,98 @@ void loop() {
   // ping the server to keep the mqtt connection alive
   // NOT required if you are publishing once every KEEPALIVE seconds
   /*
-  if(! mqtt.ping()) {
+    if(! mqtt.ping()) {
     mqtt.disconnect();
-  }
+    }
   */
 }
 
-boolean sendInventory(){
+//{"data":[{"nodeId":"NODE_ID","things":[{"id":"SENSOR_DHT22_TEMPERATURE","dataType":"FLOAT","vendor":"VENDOR","actuator":false,"type":"TYPE"}]}]}
+bool sendInventory() {
   String packet = "";
 
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
-  JsonArray& data = root.createNestedArray("data");
+  StaticJsonDocument<384> doc;
 
-  JsonObject& nodeData = jsonBuffer.createObject();
-  nodeData["nodeId"] = NODE_ID;
+  JsonObject inventory_json = doc["data"].createNestedObject();
+  inventory_json["nodeId"] = NODE_ID;
 
-  JsonArray& things = nodeData.createNestedArray("things");
-  
-  JsonObject& tempSensorData = jsonBuffer.createObject();
-  tempSensorData["id"] = SENSOR_DHT11_TEMPERATURE;
-  tempSensorData["dataType"] = "FLOAT";
-  tempSensorData["vendor"] = "a";
-  tempSensorData["actuator"] = false;
-  tempSensorData["type"] = "T";
-  things.add(tempSensorData);
+  JsonObject things_temp_json = inventory_json["things"].createNestedObject();
+  things_temp_json["id"] = SENSOR_DHT22_TEMPERATURE;
+  things_temp_json["dataType"] = "FLOAT";
+  things_temp_json["vendor"] = "DHT";
+  things_temp_json["actuator"] = false;
+  things_temp_json["type"] = "Temp&Hum Sensor";
 
-  JsonObject& sensorData = jsonBuffer.createObject();
-  sensorData["id"] = SENSOR_DHT11_HUMIDITY;
-  sensorData["dataType"] = "FLOAT";
-  sensorData["vendor"] = "a";
-  sensorData["actuator"] = false;
-  sensorData["type"] = "H";
-  things.add(sensorData);
+  JsonObject things_hum_json = inventory_json["things"].createNestedObject();
+  things_hum_json["id"] = SENSOR_DHT22_HUMIDITY;
+  things_hum_json["dataType"] = "FLOAT";
+  things_hum_json["vendor"] = "DHT";
+  things_hum_json["actuator"] = false;
+  things_hum_json["type"] = "Temp&Hum Sensor";
 
-  data.add(nodeData);
+  serializeJson(doc, packet);
+  serializeJson(doc, Serial);
 
-  root.printTo(packet);
-  Serial.println(packet);
-
-  inventory.publish(packet.c_str());
-
-  return true;
-  
+  return inventory.publish(packet.c_str());
 }
 
 //{"data":{"sensorData":[{"date":1533284119476,"values":["20000"]}]}}
-boolean sendData(String sensor, float value) {
+bool sendData(String sensor, float value) {
   String packet = "";
 
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
+  StaticJsonDocument<128> doc;
 
-  JsonObject& data = root.createNestedObject("data");
-  JsonArray& sensorDataArray = data.createNestedArray("sensorData");
+  JsonObject sensor_data_json = doc["data"]["sensorData"].createNestedObject();
+  sensor_data_json["date"] = (String(now()) + "000");
+  sensor_data_json["values"][0] = value;
 
-  JsonObject& sensorData = jsonBuffer.createObject();
+  serializeJson(doc, packet);
+  serializeJson(doc, Serial);
 
-  sensorDataArray.add(sensorData);
-  sensorData["date"] = (String(now()) + "000");
-
-  Serial.println(String(now()) + "000");
-  JsonArray& values = jsonBuffer.createArray();
-
-  sensorData["values"] = values;
-
-  values.add(value);
-
-  root.printTo(packet);
-
-  Serial.println(sensor);
-  Serial.println(packet.c_str());
-
-  if(sensor == SENSOR_DHT11_TEMPERATURE) {
+  if (sensor == SENSOR_DHT22_TEMPERATURE) {
     return tempData.publish(packet.c_str());
   } else {
     return humData.publish(packet.c_str());
   }
 }
 
-void sendNodePresence(int connected, String message) {
+//{"data":[{"nodeId":"NODE_ID","description":"description","connected":true}]}
+bool sendNodePresence(int connected, String message) {
   String packet = "";
 
-  //StaticJsonBuffer<400> jsonBuffer;
-  DynamicJsonBuffer jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
+  StaticJsonDocument<128> doc;
 
-  JsonArray& data = root.createNestedArray("data");
-  JsonObject& nodeConnection = jsonBuffer.createObject();
+  JsonObject presence_json = doc["data"].createNestedObject();
+  presence_json["nodeId"] = NODE_ID;
+  presence_json["description"] = message;
+  presence_json["connected"] = connected;
 
-  data.add(nodeConnection);
-
-  nodeConnection["nodeId"] = NODE_ID;
-  nodeConnection["description"] = message;
-  nodeConnection["connected"] = connected;
-
-  root.printTo(packet);
+  serializeJson(doc, packet);
+  serializeJson(doc, Serial);
 
   Serial.println("Presence :");
   Serial.println(packet.c_str());
 
-  if (! presence.publish(packet.c_str())) {
-    Serial.println(F("Node Presence Sent Failed!"));
-  } else {
-    Serial.println(F("Node Presence Sent."));
-  }
+
+  return presence.publish(packet.c_str());
 }
 
-boolean sendSensorPresence(String sensor, int connected, String message) {
+//{"data":[{"nodeId":"NODE_ID","thingId":"THING_ID","description":"description","connected":true}]}
+bool sendSensorPresence(String sensor, int connected, String message) {
   String packet = "";
 
-  StaticJsonBuffer<1000> jsonBuffer;
-  JsonObject& root = jsonBuffer.createObject();
+  StaticJsonDocument<192> doc;
 
-  JsonArray& data = root.createNestedArray("data");
+  JsonObject thing_presence_json = doc["data"].createNestedObject();
+  thing_presence_json["nodeId"] = NODE_ID;
+  thing_presence_json["thingId"] = sensor;
+  thing_presence_json["description"] = message;
+  thing_presence_json["connected"] = connected;
 
-  JsonObject& tempSensorConnection = jsonBuffer.createObject();
-  data.add(tempSensorConnection);
+  serializeJson(doc, packet);
+  serializeJson(doc, Serial);
 
-  tempSensorConnection["nodeId"] = NODE_ID;
-  tempSensorConnection["thingId"] = sensor;
-  tempSensorConnection["description"] = message;
-  tempSensorConnection["connected"] = connected;
-
-  root.printTo(packet);
-
-  Serial.println("Presence :");
-  Serial.println(packet.c_str());
-
-  Serial.println(sensor);
-  presence.publish(packet.c_str());
-  Serial.println(F("Sensor Presence Sent."));
-  return true;
+  return presence.publish(packet.c_str());
 }
 
 // Function to connect and reconnect as necessary to the MQTT server.
@@ -365,15 +309,15 @@ void MQTT_connect() {
 
   uint8_t retries = 3;
   while ((ret = mqtt.connect()) != 0) { // connect will return 0 for connected
-       Serial.println(mqtt.connectErrorString(ret));
-       Serial.println(F("Retrying MQTT connection in 5 seconds..."));
-       mqtt.disconnect();
-       delay(5000);  // wait 5 seconds
-       retries--;
-       if (retries == 0) {
-         // basically die and wait for WDT to reset me
-         while (1);
-       }
+    Serial.println(mqtt.connectErrorString(ret));
+    Serial.println(F("Retrying MQTT connection in 5 seconds..."));
+    mqtt.disconnect();
+    delay(5000);  // wait 5 seconds
+    retries--;
+    if (retries == 0) {
+      // basically die and wait for WDT to reset me
+      while (1);
+    }
   }
   sendInventory();
   Serial.println(F("MQTT Connected!"));
@@ -382,8 +326,8 @@ void MQTT_connect() {
 const int NTP_PACKET_SIZE = 48; // NTP time is in the first 48 bytes of message
 byte packetBuffer[NTP_PACKET_SIZE]; //buffer to hold incoming & outgoing packets
 
-time_t getNtpTime()
-{
+time_t getNtpTime() {
+
   IPAddress ntpServerIP; // NTP server's ip address
 
   while (Udp.parsePacket() > 0) ; // discard any previously received packets
@@ -414,8 +358,8 @@ time_t getNtpTime()
 }
 
 // send an NTP request to the time server at the given address
-void sendNTPpacket(IPAddress &address)
-{
+void sendNTPpacket(IPAddress &address) {
+
   // set all bytes in the buffer to 0
   memset(packetBuffer, 0, NTP_PACKET_SIZE);
   // Initialize values needed to form NTP request
